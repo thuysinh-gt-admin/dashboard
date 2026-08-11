@@ -486,7 +486,18 @@ let chartRegionInstance = null;
 function initHome(){
   const m = DATA.monthly;
   const totalOrders = new Set(DATA.orders.map(o=>o.so_po)).size;
-  const totalDebtNow = DATA.debt.reduce((s,d)=>s+d.no_cuoi_ky,0);
+
+  // Đơn hợp lệ = loại Hủy hàng / Trả hàng
+  const validOrders = DATA.orders.filter(o => o.trang_thai_don !== 'Hủy hàng' && o.trang_thai_don !== 'Trả hàng');
+  const totalRevenueValid = validOrders.reduce((s,o)=>s + o.doanh_thu_thuc_thu, 0);
+
+  // Công nợ hiện tại = tổng doanh thu của các đơn "Chưa hoàn thành"
+  const unfinishedOrders = DATA.orders.filter(o => o.trang_thai_don === 'Chưa hoàn thành');
+  const debtNow = unfinishedOrders.reduce((s,o)=>s + o.doanh_thu, 0);
+
+  // Đại lý đang theo dõi = số đại lý có ít nhất 1 đơn hợp lệ (loại Hủy/Trả hàng)
+  const activeDealerIds = new Set(validOrders.map(o => o.ma_kh || o.dai_ly).filter(Boolean));
+
   const lastIdx = m.doanh_thu_thuc.length - 1;
   // find last month with actual data (non-zero)
   let li = lastIdx;
@@ -494,10 +505,10 @@ function initHome(){
   const recoveryRate = m.doanh_thu[li] ? (1 - (m.con_cong_no[li]/m.doanh_thu[li])) : null;
 
   const kpis = [
-    {ic:'ic-green', icon:'₫', val:VND(m.total_doanh_thu_thuc), lbl:'Tổng doanh thu thực thu (lũy kế)'},
+    {ic:'ic-green', icon:'₫', val:VND(totalRevenueValid), lbl:'Tổng doanh thu thực thu (lũy kế, đã loại Hủy/Trả hàng)'},
     {ic:'ic-blue', icon:'📦', val:NUM(totalOrders), lbl:'Tổng số đơn hàng (PO)'},
-    {ic:'ic-red', icon:'⚠️', val:VND(totalDebtNow), lbl:`Công nợ hiện tại (T${DATA.debt_meta.thang}/${DATA.debt_meta.nam})`},
-    {ic:'ic-purple', icon:'🏬', val:NUM(DATA.dealers.length), lbl:'Đại lý đang theo dõi'},
+    {ic:'ic-red', icon:'⚠️', val:VND(debtNow), lbl:'Công nợ hiện tại (đơn Chưa hoàn thành)'},
+    {ic:'ic-purple', icon:'🏬', val:NUM(activeDealerIds.size), lbl:'Đại lý đang theo dõi (đã loại Hủy/Trả hàng)'},
     {ic:'ic-amber', icon:'📈', val: recoveryRate!=null ? (Math.round(recoveryRate*1000)/10)+'%' : '—', lbl:`Tỷ lệ thu hồi công nợ (${m.labels[li]})`},
     {ic:'ic-green', icon:'💵', val:VND(m.doanh_thu_thuc[li]), lbl:`Doanh thu thực thu ${m.labels[li]}`},
   ];
@@ -534,7 +545,7 @@ function initHome(){
 
   // Region chart
   const byRegion = {};
-  DATA.orders.forEach(o => { byRegion[o.vung] = (byRegion[o.vung]||0) + o.doanh_thu_thuc_thu; });
+  validOrders.forEach(o => { byRegion[o.vung] = (byRegion[o.vung]||0) + o.doanh_thu_thuc_thu; });
   const regionLabels = Object.keys(byRegion);
   const regionColors = ['#22c55e','#4f8bff','#f0a83a','#a78bfa','#f0554a'];
   if(chartRegionInstance) chartRegionInstance.destroy();
