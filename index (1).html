@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT Sales Dashboard · Thủy Sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0a1120;
+    --bg-soft:#0d1526;
+    --surface:#121c30;
+    --surface-2:#16223a;
+    --border:#22304d;
+    --text:#e9eefb;
+    --text-dim:#8fa0bd;
+    --text-faint:#5d6f8f;
+    --green:#22c55e;
+    --green-dark:#15803d;
+    --green-deep:#0f5132;
+    --amber:#f0a83a;
+    --red:#f0554a;
+    --blue:#4f8bff;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{font-family:'Sora',system-ui,sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  a{color:inherit;}
+
+  /* ---------- Header ---------- */
+  .hero{
+    position:relative;
+    background:
+      radial-gradient(120% 160% at 15% -20%, #1f9d54 0%, transparent 55%),
+      linear-gradient(150deg, #0e3d24 0%, #0b2e1c 45%, #0a1120 100%);
+    padding:34px 20px 26px;
+    overflow:hidden;
+    border-bottom:1px solid var(--border);
+  }
+  .hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size:34px 34px;
+    mask-image:radial-gradient(120% 100% at 50% 0%, black 0%, transparent 75%);
+    pointer-events:none;
+  }
+  .hero-inner{position:relative; max-width:1180px; margin:0 auto;}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12.5px; font-weight:600; letter-spacing:.09em;
+    color:#8be3ad; text-transform:uppercase;
+    background:rgba(34,197,94,.12);
+    border:1px solid rgba(34,197,94,.3);
+    padding:5px 12px; border-radius:99px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green); box-shadow:0 0 8px var(--green);}
+  .hero h1{
+    font-size:clamp(28px,5vw,42px);
+    font-weight:800; line-height:1.08; margin:16px 0 6px;
+    letter-spacing:-0.01em;
+  }
+  .hero p.sub{color:#bcd9c8; font-size:15px; margin:0 0 18px; max-width:560px;}
+  .badge-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .pill{
+    font-size:12.5px; font-weight:600; color:#d7e6dd;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.12);
+    padding:6px 12px; border-radius:99px;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+
+  /* ---------- Tabs ---------- */
+  .tabbar{
+    position:sticky; top:0; z-index:40;
+    background:rgba(10,17,32,.92);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .tabbar-inner{
+    max-width:1180px; margin:0 auto; padding:0 20px;
+    display:flex; gap:4px; overflow-x:auto;
+  }
+  .tab-btn{
+    appearance:none; border:none; background:none; cursor:pointer;
+    color:var(--text-dim); font:inherit; font-weight:600; font-size:14.5px;
+    padding:14px 16px; white-space:nowrap;
+    border-bottom:2.5px solid transparent;
+    display:flex; align-items:center; gap:8px;
+    transition:color .15s;
+  }
+  .tab-btn:hover{color:var(--text);}
+  .tab-btn.active{color:var(--green); border-bottom-color:var(--green);}
+
+  /* ---------- Layout ---------- */
+  main{max-width:1180px; margin:0 auto; padding:22px 20px 70px;}
+  .view{display:none;}
+  .view.active{display:block; animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  .section-title{
+    font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--text-faint); margin:28px 0 12px;
+  }
+  .section-title:first-child{margin-top:0;}
+
+  /* ---------- KPI cards ---------- */
+  .kpi-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:12px;
+  }
+  @media (max-width:760px){ .kpi-grid{grid-template-columns:repeat(2,1fr);} }
+  .kpi-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    position:relative; overflow:hidden;
+  }
+  .kpi-card .icon{
+    width:34px; height:34px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; margin-bottom:12px;
+  }
+  .kpi-card .val{font-family:'Sora'; font-size:26px; font-weight:700; line-height:1.15;}
+  .kpi-card .lbl{color:var(--text-dim); font-size:13px; margin-top:4px;}
+  .kpi-card .delta{font-size:12px; margin-top:8px; font-weight:600;}
+  .ic-green{background:rgba(34,197,94,.14); color:#4ade80;}
+  .ic-blue{background:rgba(79,139,255,.14); color:#7ba6ff;}
+  .ic-amber{background:rgba(240,168,58,.14); color:#f5b95c;}
+  .ic-red{background:rgba(240,85,74,.14); color:#f28880;}
+  .ic-purple{background:rgba(167,139,250,.14); color:#a78bfa;}
+
+  /* ---------- Panels / charts ---------- */
+  .panel{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:18px;
+  }
+  .panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;}
+  .panel-head h3{font-size:15px; margin:0; font-weight:700;}
+  .panel-head .hint{font-size:12.5px; color:var(--text-faint);}
+  .two-col{display:grid; grid-template-columns:1.4fr 1fr; gap:14px;}
+  @media (max-width:860px){ .two-col{grid-template-columns:1fr;} }
+  .chart-wrap{position:relative; height:270px;}
+
+  /* ---------- Toolbar (filters) ---------- */
+  .toolbar{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+  .toolbar input[type=text]{
+    flex:1; min-width:200px;
+    background:var(--bg-soft); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:10px; font:inherit; font-size:13.5px;
+  }
+  .toolbar select{
+    background:var(--bg-soft); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:10px; font:inherit; font-size:13.5px;
+  }
+  .toolbar input::placeholder{color:var(--text-faint);}
+  .count-tag{font-size:12.5px; color:var(--text-dim); align-self:center; margin-left:auto; white-space:nowrap;}
+  .date-label{
+    display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-dim);
+    background:var(--bg-soft); border:1px solid var(--border); border-radius:10px; padding:6px 10px;
+  }
+  .date-label input[type=date]{
+    background:none; border:none; color:var(--text); font:inherit; font-size:13px;
+  }
+
+  /* ---------- Map ---------- */
+  .map-row{display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start;}
+  .map-wrap{
+    position:relative; width:220px; flex:0 0 220px;
+    background:var(--bg-soft); border:1px solid var(--border); border-radius:12px;
+    padding:10px;
+  }
+  #vnMap{width:100%; height:auto; display:block;}
+  .vn-outline{fill:rgba(79,139,255,.08); stroke:rgba(79,139,255,.35); stroke-width:1;}
+  .vn-marker{cursor:pointer; transition:r .15s, filter .15s; transform-box:fill-box; transform-origin:center;}
+  .vn-marker:hover{filter:brightness(1.3);}
+  .vn-marker-group{transition:transform .15s ease;}
+  .vn-marker-group:hover{transform:scale(1.7);}
+  .vn-label{font-size:6.5px; fill:var(--text-dim); pointer-events:none; font-family:'Inter';}
+  .map-tooltip{
+    position:absolute; z-index:10; pointer-events:none;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+    padding:7px 10px; font-size:12px; color:var(--text); white-space:nowrap;
+    box-shadow:0 6px 18px rgba(0,0,0,.35);
+  }
+  .map-tooltip .t-title{font-weight:700; margin-bottom:2px;}
+
+  /* ---------- Tables ---------- */
+  .table-scroll{overflow-x:auto; border-radius:12px; border:1px solid var(--border);}
+  table{width:100%; border-collapse:collapse; font-size:13.5px; min-width:640px;}
+  thead th{
+    text-align:left; padding:11px 12px; background:var(--surface-2);
+    color:var(--text-dim); font-weight:600; font-size:12px;
+    text-transform:uppercase; letter-spacing:.04em;
+    position:sticky; top:0;
+    border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  tbody td{padding:11px 12px; border-bottom:1px solid var(--border); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:rgba(255,255,255,.02);}
+  .num{text-align:right; font-family:'IBM Plex Mono'; font-size:12.8px; white-space:nowrap;}
+  .muted{color:var(--text-dim);}
+  .tfoot-row td{font-weight:700; background:var(--surface-2); border-top:1px solid var(--border);}
+
+  .tag{
+    display:inline-block; padding:3px 9px; border-radius:99px; font-size:11.5px; font-weight:600;
+  }
+  .tag-green{background:rgba(34,197,94,.14); color:#4ade80;}
+  .tag-amber{background:rgba(240,168,58,.14); color:#f5b95c;}
+  .tag-red{background:rgba(240,85,74,.14); color:#f28880;}
+  .tag-blue{background:rgba(79,139,255,.14); color:#7ba6ff;}
+  .tag-gray{background:rgba(148,163,184,.14); color:#a9b6cc;}
+
+  .pager{display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:12px; font-size:13px; color:var(--text-dim);}
+  .pager button{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    padding:6px 12px; border-radius:8px; cursor:pointer; font:inherit; font-size:13px;
+  }
+  .pager button:disabled{opacity:.4; cursor:not-allowed;}
+
+  footer{
+    text-align:center; color:var(--text-faint); font-size:12.5px; padding:24px 20px 40px;
+  }
+
+  .loading{padding:40px; text-align:center; color:var(--text-dim);}
+
+  /* ---------- Status bar ---------- */
+  .statusbar{
+    background:var(--bg-soft); border-bottom:1px solid var(--border);
+  }
+  .statusbar-inner{
+    max-width:1180px; margin:0 auto; padding:9px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .status-text{font-size:12.5px; color:var(--text-faint);}
+  .status-actions{display:flex; align-items:center; gap:8px;}
+  .refresh-btn{
+    appearance:none; cursor:pointer; font:inherit; font-weight:600; font-size:12.5px;
+    color:var(--text); background:var(--surface-2); border:1px solid var(--border);
+    padding:6px 12px; border-radius:99px;
+    display:inline-flex; align-items:center; gap:6px;
+    transition:border-color .15s, color .15s;
+  }
+  .refresh-btn:hover{border-color:var(--green); color:#8be3ad;}
+  .refresh-btn:disabled{opacity:.55; cursor:default;}
+  .refresh-btn .spin{display:inline-block;}
+  .refresh-btn.loading .spin{animation:spin .8s linear infinite;}
+  @keyframes spin{from{transform:rotate(0deg);} to{transform:rotate(360deg);}}
+  .new-data-badge{
+    appearance:none; cursor:pointer; font:inherit; font-weight:700; font-size:12.5px;
+    color:#3a2a06; background:var(--amber); border:none;
+    padding:6px 12px; border-radius:99px;
+    animation:pulseBadge 1.6s ease-in-out infinite;
+  }
+  @keyframes pulseBadge{0%,100%{box-shadow:0 0 0 0 rgba(240,168,58,.5);} 50%{box-shadow:0 0 0 6px rgba(240,168,58,0);}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow"><span class="dot"></span> Thủy Sinh · Kênh GT</span>
+    <h1>GT Sales Dashboard</h1>
+    <p class="sub">Theo dõi doanh thu, đại lý và công nợ toàn kênh General Trade — Tây Nguyên, Miền Đông, Miền Bắc.</p>
+    <div class="badge-row" id="heroBadges"></div>
+  </div>
+</header>
+
+<nav class="tabbar">
+  <div class="tabbar-inner">
+    <button class="tab-btn active" data-view="home">🏠 Trang chủ</button>
+    <button class="tab-btn" data-view="dealers">🧾 Danh sách đại lý</button>
+    <button class="tab-btn" data-view="debt">💰 Công nợ</button>
+    <button class="tab-btn" data-view="orders">📦 Đơn hàng</button>
+  </div>
+</nav>
+
+<div class="statusbar">
+  <div class="statusbar-inner">
+    <span class="status-text" id="statusText">Đang tải dữ liệu…</span>
+    <div class="status-actions">
+      <button class="new-data-badge" id="newDataBadge" style="display:none;">🔔 Có dữ liệu mới — bấm để tải</button>
+      <button class="refresh-btn" id="refreshBtn"><span class="spin">🔄</span> Làm mới</button>
+    </div>
+  </div>
+</div>
+
+<main id="app">
+  <div class="loading" id="loadingMsg">Đang tải dữ liệu…</div>
+
+  <!-- ===== TRANG CHỦ ===== -->
+  <section class="view active" id="view-home">
+    <div class="section-title">Chỉ số tổng quan</div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="section-title">Diễn biến &amp; cơ cấu</div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-head">
+        <h3>Doanh thu theo địa phương</h3>
+        <span class="hint">Trỏ chuột vào từng tỉnh để xem chi tiết</span>
+      </div>
+      <div class="map-row">
+        <div class="map-wrap">
+          <svg id="vnMap" viewBox="0 0 260 520" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="map-tooltip" id="mapTooltip" style="display:none;"></div>
+        </div>
+        <div class="table-scroll" style="align-self:flex-start; width:100%;">
+          <table>
+            <thead><tr><th>Tỉnh thành</th><th class="num">Doanh thu thực thu</th><th class="num">% Tỷ lệ</th></tr></thead>
+            <tbody id="provinceBody"></tbody>
+            <tfoot><tr class="tfoot-row" id="provinceFoot"></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Hiệu quả kinh doanh theo vùng miền</h3>
+          <span class="hint">Lũy kế</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr>
+              <th>Khu vực</th><th class="num">Doanh thu thực thu</th><th class="num">%</th>
+              <th class="num">Sản lượng (ĐV)</th><th class="num">%</th>
+              <th class="num">Lần đặt hàng</th><th class="num">%</th>
+            </tr></thead>
+            <tbody id="regionBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Xu hướng theo tháng</h3>
+          <span class="hint">Doanh thu thực thu &amp; số đơn</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chartTrend"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-title">Đại lý công nợ cao nhất</div>
+    <div class="panel">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Đại lý / Khách hàng</th><th class="num">Nợ cuối kỳ</th></tr></thead>
+          <tbody id="topDebtBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ĐẠI LÝ ===== -->
+  <section class="view" id="view-dealers">
+    <div class="section-title">Danh sách đại lý</div>
+    <div class="panel">
+      <div class="toolbar">
+        <input type="text" id="dealerSearch" placeholder="Tìm theo tên đại lý, SĐT, mã KH...">
+        <select id="dealerVung"><option value="">Tất cả vùng</option></select>
+        <select id="dealerTinh"><option value="">Tất cả tỉnh</option></select>
+        <span class="count-tag" id="dealerCount"></span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>Mã KH</th><th>Tên đại lý</th><th>Người phụ trách</th><th>Vùng</th><th>Tỉnh</th><th>Huyện</th><th>SĐT</th>
+          </tr></thead>
+          <tbody id="dealerBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CÔNG NỢ ===== -->
+  <section class="view" id="view-debt">
+    <div class="section-title">Công nợ theo đại lý <span id="debtPeriod" class="muted" style="font-weight:500;"></span></div>
+    <div class="kpi-grid" id="debtKpiGrid" style="margin-bottom:20px;"></div>
+    <div class="panel">
+      <div class="toolbar">
+        <input type="text" id="debtSearch" placeholder="Tìm theo tên đại lý...">
+        <span class="count-tag" id="debtCount"></span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Đại lý / Khách hàng</th>
+            <th class="num">Nợ đầu kỳ</th><th class="num">Phát sinh</th>
+            <th class="num">Thanh toán</th><th class="num">Nợ cuối kỳ</th><th>Mức độ</th>
+          </tr></thead>
+          <tbody id="debtBody"></tbody>
+          <tfoot><tr class="tfoot-row" id="debtFoot"></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ĐƠN HÀNG ===== -->
+  <section class="view" id="view-orders">
+    <div class="section-title">Đơn hàng (PO)</div>
+    <div class="panel">
+      <div class="toolbar">
+        <input type="text" id="orderSearch" placeholder="Tìm theo số PO, đại lý, SĐT, sản phẩm...">
+        <label class="date-label">Từ <input type="date" id="orderFrom"></label>
+        <label class="date-label">Đến <input type="date" id="orderTo"></label>
+      </div>
+      <div class="toolbar">
+        <select id="orderVung"><option value="">Tất cả vùng</option></select>
+        <select id="orderTinh"><option value="">Tất cả tỉnh</option></select>
+        <select id="orderHuyen"><option value="">Tất cả quận/huyện</option></select>
+        <select id="orderSales"><option value="">Tất cả sales</option></select>
+        <select id="orderDealer"><option value="">Tất cả đại lý</option></select>
+        <select id="orderProduct"><option value="">Tất cả sản phẩm</option></select>
+        <select id="orderDebtStatus">
+          <option value="">Trạng thái nợ: Tất cả</option>
+          <option value="Đã thu đủ">Đã thu đủ</option>
+          <option value="Còn công nợ">Còn công nợ</option>
+        </select>
+        <span class="count-tag" id="orderCount"></span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>Ngày PO</th><th>Số PO</th><th>Đại lý</th><th>Vùng</th><th>Tỉnh</th><th>Sản phẩm</th>
+            <th class="num">Doanh thu</th><th>Trạng thái</th>
+          </tr></thead>
+          <tbody id="orderBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span id="orderPageInfo"></span>
+        <button id="orderPrev">‹ Trước</button>
+        <button id="orderNext">Sau ›</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>GT Sales Dashboard · Dữ liệu nội bộ Thủy Sinh · Cập nhật thủ công từ Google Sheet</footer>
+
+<script>
+const VND = n => (Math.round(n||0)).toLocaleString('vi-VN') + ' đ';
+const NUM = n => (Math.round(n||0)).toLocaleString('vi-VN');
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let DATA = null;
+let isLoading = false;
+const POLL_MS = 3 * 60 * 1000; // kiểm tra bản mới mỗi 3 phút
+
+function fmtTime(d){ return d.toLocaleString('vi-VN'); }
+
+function setStatus(text){
+  const el = document.getElementById('statusText');
+  if(el) el.textContent = text;
+}
+
+async function fetchData(){
+  const res = await fetch('data.json?v=' + Date.now(), {cache:'no-store'});
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+async function loadData(isManualRefresh){
+  if(isLoading) return;
+  isLoading = true;
+  const btn = document.getElementById('refreshBtn');
+  if(btn){ btn.disabled = true; btn.classList.add('loading'); }
+  if(isManualRefresh) setStatus('Đang làm mới…');
+  try{
+    const d = await fetchData();
+    DATA = d;
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('newDataBadge').style.display = 'none';
+    renderAll();
+    setStatus(`Dữ liệu xuất lúc ${fmtTime(new Date(d.generated_at))} · tải lại lúc ${fmtTime(new Date())}`);
+  }catch(err){
+    console.error(err);
+    if(!DATA){
+      document.getElementById('loadingMsg').style.display = 'block';
+      document.getElementById('loadingMsg').textContent =
+        'Không tải được data.json — kiểm tra file data.json có được deploy CÙNG LÚC với index.html trên host không (Netlify/GitHub Pages), rồi bấm nút "Làm mới" bên trên để thử lại.';
+    } else {
+      setStatus('Làm mới thất bại — kiểm tra kết nối mạng rồi thử lại.');
+    }
+  } finally {
+    isLoading = false;
+    if(btn){ btn.disabled = false; btn.classList.remove('loading'); }
+  }
+}
+
+function renderAll(){
+  initHero();
+  initHome();
+  initDealers();
+  initDebt();
+  initOrders();
+}
+
+document.getElementById('refreshBtn').addEventListener('click', () => loadData(true));
+
+// Tự động kiểm tra dữ liệu mới ở nền — không tự thay đổi dữ liệu đang xem,
+// chỉ hiện nút nổi bật để người dùng chủ động bấm tải lại.
+async function checkForUpdate(){
+  if(!DATA || isLoading) return;
+  try{
+    const d = await fetchData();
+    if(d.generated_at && d.generated_at !== DATA.generated_at){
+      document.getElementById('newDataBadge').style.display = 'inline-flex';
+    }
+  }catch(e){ /* im lặng bỏ qua lỗi khi tự kiểm tra nền */ }
+}
+document.getElementById('newDataBadge').addEventListener('click', () => loadData(true));
+setInterval(checkForUpdate, POLL_MS);
+
+loadData(false);
+
+// ---------- Tabs ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  });
+});
+
+function initHero(){
+  const badges = [
+    `${DATA.kpi.so_dai_ly} đại lý`,
+    `${DATA.kpi.so_vung} vùng`,
+    `${DATA.kpi.so_tinh} tỉnh`,
+    `${DATA.kpi.tong_so_don.toLocaleString('vi-VN')} đơn hàng`,
+  ];
+  document.getElementById('heroBadges').innerHTML = badges.map(b=>`<span class="pill">${b}</span>`).join('');
+}
+
+// ---------- TRANG CHỦ ----------
+let chartTrendInstance = null;
+const MAP_BOUNDS = {latMin:8.0, latMax:23.5, lonMin:102.0, lonMax:110.0, W:260, H:520};
+const VN_OUTLINE = "M 128.4,5.0 L 154.7,55.4 L 194.0,66.1 L 152.1,88.6 L 126.8,124.1 L 119.9,162.0 L 150.2,202.3 L 181.7,236.2 L 202.1,249.9 L 234.6,326.1 L 233.7,377.8 L 198.2,421.7 L 165.1,441.2 L 123.5,469.7 L 91.0,499.9 L 100.7,459.6 L 80.6,440.2 L 101.4,429.4 L 123.5,416.0 L 178.8,385.8 L 182.0,319.4 L 169.0,295.2 L 130.0,221.4 L 65.0,140.9 L 32.5,87.2 L 35.7,36.9 L 96.9,23.5 L 128.4,5.0 Z";
+
+function project(lat, lon){
+  const b = MAP_BOUNDS;
+  const x = (lon - b.lonMin) / (b.lonMax - b.lonMin) * b.W;
+  const y = (b.latMax - lat) / (b.latMax - b.latMin) * b.H;
+  return [x, y];
+}
+
+function initHome(){
+  const kpi = DATA.kpi;
+
+  const kpis = [
+    {ic:'ic-green', icon:'₫', val:VND(kpi.tong_doanh_thu_thuc_thu), lbl:'Tổng doanh thu thực thu (lũy kế, đơn Hoàn thành)'},
+    {ic:'ic-blue', icon:'📦', val:NUM(kpi.tong_so_don), lbl:'Tổng số đơn hàng (PO, đã loại Hủy/Trả hàng)'},
+    {ic:'ic-red', icon:'⚠️', val:VND(kpi.cong_no_hien_tai), lbl:'Công nợ hiện tại (đơn Chưa hoàn thành)'},
+    {ic:'ic-purple', icon:'🏬', val:NUM(kpi.so_dai_ly), lbl:'Đại lý đang theo dõi (đã loại Hủy/Trả hàng)'},
+    {ic:'ic-amber', icon:'📈', val: kpi.ty_le_thu_hoi_pct!=null ? (Math.round(kpi.ty_le_thu_hoi_pct*10)/10)+'%' : '—', lbl:`Tỷ lệ thu hồi công nợ (${kpi.ty_le_thu_hoi_thang||'—'})`},
+    {ic:'ic-green', icon:'💵', val:VND(kpi.doanh_thu_thuc_thu_thang_gan_nhat), lbl:`Doanh thu thực thu ${kpi.ty_le_thu_hoi_thang||''}`},
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k=>`
+    <div class="kpi-card">
+      <div class="icon ${k.ic}">${k.icon}</div>
+      <div class="val">${k.val}</div>
+      <div class="lbl">${k.lbl}</div>
+    </div>`).join('');
+
+  renderMap();
+  renderProvinceTable();
+  renderRegionTable();
+  renderTrendChart();
+
+  // Top debt
+  const topDebt = [...DATA.debt].sort((a,b)=>b.no_cuoi_ky - a.no_cuoi_ky).slice(0,10);
+  document.getElementById('topDebtBody').innerHTML = topDebt.map((d,i)=>`
+    <tr><td>${i+1}</td><td>${esc(d.ten)}</td><td class="num">${VND(d.no_cuoi_ky)}</td></tr>
+  `).join('');
+}
+
+function renderMap(){
+  const svg = document.getElementById('vnMap');
+  const tooltip = document.getElementById('mapTooltip');
+  const maxRev = Math.max(1, ...DATA.by_province.map(p=>p.doanh_thu_thuc_thu));
+  let html = `<path class="vn-outline" d="${VN_OUTLINE}"></path>`;
+  DATA.by_province.forEach(p=>{
+    if(p.lat==null || p.lon==null) return;
+    const [x,y] = project(p.lat, p.lon);
+    const r = 3 + (p.doanh_thu_thuc_thu / maxRev) * 7;
+    html += `
+      <g class="vn-marker-group" data-tinh="${esc(p.tinh)}" data-rev="${p.doanh_thu_thuc_thu}" data-pct="${p.ty_le}">
+        <circle class="vn-marker" cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="#22c55e" fill-opacity="0.85" stroke="#0a1120" stroke-width="1"></circle>
+        <text class="vn-label" x="${x+r+3}" y="${y+2.5}">${esc(p.tinh)}</text>
+      </g>`;
+  });
+  svg.innerHTML = html;
+
+  svg.querySelectorAll('.vn-marker-group').forEach(g=>{
+    g.addEventListener('mouseenter', (e)=>{
+      const tinh = g.dataset.tinh, rev = Number(g.dataset.rev), pct = g.dataset.pct;
+      tooltip.innerHTML = `<div class="t-title">${esc(tinh)}</div>${VND(rev)} · ${pct}%`;
+      tooltip.style.display = 'block';
+    });
+    g.addEventListener('mousemove', (e)=>{
+      const wrap = document.querySelector('.map-wrap').getBoundingClientRect();
+      tooltip.style.left = (e.clientX - wrap.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - wrap.top + 8) + 'px';
+    });
+    g.addEventListener('mouseleave', ()=>{ tooltip.style.display = 'none'; });
+  });
+}
+
+function renderProvinceTable(){
+  const total = DATA.by_province.reduce((s,p)=>s+p.doanh_thu_thuc_thu, 0);
+  document.getElementById('provinceBody').innerHTML = DATA.by_province.map(p=>`
+    <tr><td>${esc(p.tinh)}</td><td class="num">${VND(p.doanh_thu_thuc_thu)}</td><td class="num">${p.ty_le}%</td></tr>
+  `).join('');
+  document.getElementById('provinceFoot').innerHTML = `
+    <td>TOTAL</td><td class="num">${VND(total)}</td><td class="num">100%</td>`;
+}
+
+function renderRegionTable(){
+  document.getElementById('regionBody').innerHTML = DATA.by_region.map(r=>`
+    <tr>
+      <td><span class="tag tag-blue">${esc(r.vung)}</span></td>
+      <td class="num">${VND(r.doanh_thu_thuc_thu)}</td><td class="num">${r.ty_le_doanh_thu}%</td>
+      <td class="num">${NUM(r.san_luong)}</td><td class="num">${r.ty_le_san_luong}%</td>
+      <td class="num">${NUM(r.so_don)}</td><td class="num">${r.ty_le_so_don}%</td>
+    </tr>`).join('');
+}
+
+function renderTrendChart(){
+  const t = DATA.monthly_trend;
+  if(chartTrendInstance) chartTrendInstance.destroy();
+  chartTrendInstance = new Chart(document.getElementById('chartTrend'), {
+    data:{
+      labels:t.labels,
+      datasets:[
+        {
+          type:'bar', label:'Doanh thu thực thu', data:t.doanh_thu_thuc_thu,
+          backgroundColor:'rgba(34,197,94,.55)', borderRadius:6, borderSkipped:false,
+          yAxisID:'y',
+        },
+        {
+          type:'line', label:'Số đơn', data:t.so_don,
+          borderColor:'#f0a83a', backgroundColor:'#f0a83a', tension:.3,
+          pointRadius:3, yAxisID:'y1',
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom', labels:{color:'#c7d2e6', font:{size:12}, boxWidth:10, padding:14}},
+        tooltip:{callbacks:{label:c=> c.dataset.yAxisID==='y' ? ` ${c.dataset.label}: ${VND(c.raw)}` : ` ${c.dataset.label}: ${c.raw}`}}
+      },
+      scales:{
+        x:{ticks:{color:'#8fa0bd', font:{size:11}}, grid:{display:false}},
+        y:{position:'left', ticks:{color:'#8fa0bd', font:{size:11}, callback:v=>(v/1e6)+'tr'}, grid:{color:'rgba(255,255,255,.06)'}},
+        y1:{position:'right', ticks:{color:'#8fa0bd', font:{size:11}}, grid:{display:false}},
+      }
+    }
+  });
+}
+
+// ---------- ĐẠI LÝ ----------
+let dealersEventsBound = false;
+function resetSelect(sel){ while(sel.options.length > 1) sel.remove(1); }
+function initDealers(){
+  const vungSel = document.getElementById('dealerVung');
+  const tinhSel = document.getElementById('dealerTinh');
+  resetSelect(vungSel);
+  resetSelect(tinhSel);
+  [...new Set(DATA.dealers.map(d=>d.vung).filter(Boolean))].sort().forEach(v=>{
+    vungSel.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">${esc(v)}</option>`);
+  });
+  [...new Set(DATA.dealers.map(d=>d.tinh).filter(Boolean))].sort().forEach(t=>{
+    tinhSel.insertAdjacentHTML('beforeend', `<option value="${esc(t)}">${esc(t)}</option>`);
+  });
+
+  function render(){
+    const q = document.getElementById('dealerSearch').value.trim().toLowerCase();
+    const vung = vungSel.value, tinh = tinhSel.value;
+    const rows = DATA.dealers.filter(d=>{
+      if(vung && d.vung!==vung) return false;
+      if(tinh && d.tinh!==tinh) return false;
+      if(q){
+        const hay = `${d.dai_ly} ${d.khach_hang} ${d.sdt} ${d.ma_kh}`.toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    document.getElementById('dealerCount').textContent = `${rows.length} / ${DATA.dealers.length} đại lý`;
+    document.getElementById('dealerBody').innerHTML = rows.map(d=>`
+      <tr>
+        <td class="mono muted">${esc(d.ma_kh)}</td>
+        <td>${esc(d.dai_ly)}</td>
+        <td>${esc(d.nguoi_phu_trach)}</td>
+        <td><span class="tag tag-blue">${esc(d.vung)}</span></td>
+        <td>${esc(d.tinh)}</td>
+        <td class="muted">${esc(d.huyen)}</td>
+        <td class="mono">${esc(d.sdt)}</td>
+      </tr>`).join('') || `<tr><td colspan="7" class="muted" style="text-align:center; padding:24px;">Không tìm thấy đại lý phù hợp.</td></tr>`;
+  }
+  if(!dealersEventsBound){
+    ['input','change'].forEach(ev=>{
+      document.getElementById('dealerSearch').addEventListener(ev, render);
+      vungSel.addEventListener(ev, render);
+      tinhSel.addEventListener(ev, render);
+    });
+    dealersEventsBound = true;
+  }
+  render();
+}
+
+// ---------- CÔNG NỢ ----------
+let debtEventsBound = false;
+function initDebt(){
+  document.getElementById('debtPeriod').textContent = `— Kỳ ${DATA.debt_meta.thang}/${DATA.debt_meta.nam}`;
+  const totalDau = DATA.debt.reduce((s,d)=>s+d.no_dau_ky,0);
+  const totalPhat = DATA.debt.reduce((s,d)=>s+d.phat_sinh,0);
+  const totalThu = DATA.debt.reduce((s,d)=>s+d.thanh_toan,0);
+  const totalCuoi = DATA.debt.reduce((s,d)=>s+d.no_cuoi_ky,0);
+
+  document.getElementById('debtKpiGrid').innerHTML = [
+    {ic:'ic-blue', icon:'📥', val:VND(totalDau), lbl:'Tổng nợ đầu kỳ'},
+    {ic:'ic-amber', icon:'➕', val:VND(totalPhat), lbl:'Phát sinh trong kỳ'},
+    {ic:'ic-green', icon:'✅', val:VND(totalThu), lbl:'Đã thanh toán trong kỳ'},
+    {ic:'ic-red', icon:'⚠️', val:VND(totalCuoi), lbl:'Nợ cuối kỳ (còn phải thu)'},
+  ].map(k=>`
+    <div class="kpi-card">
+      <div class="icon ${k.ic}">${k.icon}</div>
+      <div class="val">${k.val}</div>
+      <div class="lbl">${k.lbl}</div>
+    </div>`).join('');
+
+  function levelTag(v){
+    if(v<=0) return `<span class="tag tag-gray">Không nợ</span>`;
+    if(v<10000000) return `<span class="tag tag-green">Thấp</span>`;
+    if(v<30000000) return `<span class="tag tag-amber">Trung bình</span>`;
+    return `<span class="tag tag-red">Cao</span>`;
+  }
+
+  function render(){
+    const q = document.getElementById('debtSearch').value.trim().toLowerCase();
+    const rows = [...DATA.debt].filter(d => !q || (d.ten||'').toLowerCase().includes(q))
+      .sort((a,b)=>b.no_cuoi_ky - a.no_cuoi_ky);
+    document.getElementById('debtCount').textContent = `${rows.length} / ${DATA.debt.length} đại lý`;
+    document.getElementById('debtBody').innerHTML = rows.map((d,i)=>`
+      <tr>
+        <td class="muted">${i+1}</td>
+        <td>${esc(d.ten)}</td>
+        <td class="num">${VND(d.no_dau_ky)}</td>
+        <td class="num">${VND(d.phat_sinh)}</td>
+        <td class="num">${VND(d.thanh_toan)}</td>
+        <td class="num" style="font-weight:700;">${VND(d.no_cuoi_ky)}</td>
+        <td>${levelTag(d.no_cuoi_ky)}</td>
+      </tr>`).join('') || `<tr><td colspan="7" class="muted" style="text-align:center; padding:24px;">Không tìm thấy đại lý phù hợp.</td></tr>`;
+    document.getElementById('debtFoot').innerHTML = `
+      <td colspan="2">TỔNG CỘNG</td>
+      <td class="num">${VND(totalDau)}</td>
+      <td class="num">${VND(totalPhat)}</td>
+      <td class="num">${VND(totalThu)}</td>
+      <td class="num">${VND(totalCuoi)}</td>
+      <td></td>`;
+  }
+  if(!debtEventsBound){
+    document.getElementById('debtSearch').addEventListener('input', render);
+    debtEventsBound = true;
+  }
+  render();
+}
+
+// ---------- ĐƠN HÀNG ----------
+let orderPage = 0;
+let ordersEventsBound = false;
+const ORDER_PAGE_SIZE = 40;
+
+function initOrders(){
+  const vungSel = document.getElementById('orderVung');
+  const tinhSel = document.getElementById('orderTinh');
+  const huyenSel = document.getElementById('orderHuyen');
+  const salesSel = document.getElementById('orderSales');
+  const dealerSel = document.getElementById('orderDealer');
+  const productSel = document.getElementById('orderProduct');
+  const debtStatusSel = document.getElementById('orderDebtStatus');
+  [vungSel, tinhSel, huyenSel, salesSel, dealerSel, productSel].forEach(resetSelect);
+
+  const f = DATA.filters;
+  f.vung.forEach(v => vungSel.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">${esc(v)}</option>`));
+  f.tinh.forEach(t => tinhSel.insertAdjacentHTML('beforeend', `<option value="${esc(t)}">${esc(t)}</option>`));
+  f.huyen.forEach(h => huyenSel.insertAdjacentHTML('beforeend', `<option value="${esc(h)}">${esc(h)}</option>`));
+  f.sales.forEach(s => salesSel.insertAdjacentHTML('beforeend', `<option value="${esc(s)}">${esc(s)}</option>`));
+  f.products.forEach(p => productSel.insertAdjacentHTML('beforeend', `<option value="${esc(p)}">${esc(p)}</option>`));
+  [...new Set(DATA.orders.map(o=>o.dai_ly).filter(Boolean))].sort().forEach(d=>{
+    dealerSel.insertAdjacentHTML('beforeend', `<option value="${esc(d)}">${esc(d)}</option>`);
+  });
+
+  function statusTag(s){
+    if(s==='Hoàn thành') return `<span class="tag tag-green">${esc(s)}</span>`;
+    if(s==='Chưa hoàn thành') return `<span class="tag tag-amber">${esc(s)}</span>`;
+    if(s==='Hủy hàng' || s==='Trả hàng') return `<span class="tag tag-red">${esc(s)}</span>`;
+    return `<span class="tag tag-gray">${esc(s||'—')}</span>`;
+  }
+
+  function filtered(){
+    const q = document.getElementById('orderSearch').value.trim().toLowerCase();
+    const from = document.getElementById('orderFrom').value;
+    const to = document.getElementById('orderTo').value;
+    const vung = vungSel.value, tinh = tinhSel.value, huyen = huyenSel.value;
+    const sales = salesSel.value, dealer = dealerSel.value, product = productSel.value;
+    const debtStatus = debtStatusSel.value;
+    return DATA.orders.filter(o=>{
+      if(o.trang_thai_don === 'Hủy hàng' || o.trang_thai_don === 'Trả hàng') return false;
+      if(vung && o.vung!==vung) return false;
+      if(tinh && o.tinh!==tinh) return false;
+      if(huyen && o.huyen!==huyen) return false;
+      if(sales && o.nguoi_phu_trach!==sales) return false;
+      if(dealer && o.dai_ly!==dealer) return false;
+      if(product && o.san_pham!==product) return false;
+      if(debtStatus && o.trang_thai_no!==debtStatus) return false;
+      if(from && (!o.ngay_po || o.ngay_po < from)) return false;
+      if(to && (!o.ngay_po || o.ngay_po > to)) return false;
+      if(q){
+        const hay = `${o.so_po} ${o.dai_ly} ${o.sdt} ${o.san_pham}`.toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a,b)=> (b.ngay_po||'').localeCompare(a.ngay_po||''));
+  }
+
+  function render(){
+    orderPage = 0;
+    renderPage();
+  }
+  function renderPage(){
+    const rows = filtered();
+    const totalPages = Math.max(1, Math.ceil(rows.length / ORDER_PAGE_SIZE));
+    orderPage = Math.min(orderPage, totalPages-1);
+    const pageRows = rows.slice(orderPage*ORDER_PAGE_SIZE, (orderPage+1)*ORDER_PAGE_SIZE);
+    document.getElementById('orderCount').textContent = `${rows.length} dòng (đã loại Hủy/Trả hàng)`;
+    document.getElementById('orderBody').innerHTML = pageRows.map(o=>`
+      <tr>
+        <td class="muted">${esc(o.ngay_po||'—')}</td>
+        <td class="mono">${esc(o.so_po)}</td>
+        <td>${esc(o.dai_ly)}</td>
+        <td><span class="tag tag-blue">${esc(o.vung)}</span></td>
+        <td>${esc(o.tinh)}</td>
+        <td class="muted">${esc(o.san_pham)}</td>
+        <td class="num">${VND(o.doanh_thu_thuc_thu)}</td>
+        <td>${statusTag(o.trang_thai_don)}</td>
+      </tr>`).join('') || `<tr><td colspan="8" class="muted" style="text-align:center; padding:24px;">Không tìm thấy đơn hàng phù hợp.</td></tr>`;
+    document.getElementById('orderPageInfo').textContent = `Trang ${orderPage+1} / ${totalPages}`;
+    document.getElementById('orderPrev').disabled = orderPage<=0;
+    document.getElementById('orderNext').disabled = orderPage>=totalPages-1;
+  }
+  if(!ordersEventsBound){
+    ['input','change'].forEach(ev=>{
+      document.getElementById('orderSearch').addEventListener(ev, render);
+      document.getElementById('orderFrom').addEventListener(ev, render);
+      document.getElementById('orderTo').addEventListener(ev, render);
+      vungSel.addEventListener(ev, render);
+      tinhSel.addEventListener(ev, render);
+      huyenSel.addEventListener(ev, render);
+      salesSel.addEventListener(ev, render);
+      dealerSel.addEventListener(ev, render);
+      productSel.addEventListener(ev, render);
+      debtStatusSel.addEventListener(ev, render);
+    });
+    document.getElementById('orderPrev').addEventListener('click', ()=>{ orderPage--; renderPage(); });
+    document.getElementById('orderNext').addEventListener('click', ()=>{ orderPage++; renderPage(); });
+    ordersEventsBound = true;
+  }
+  render();
+}
+</script>
+</body>
+</html>
